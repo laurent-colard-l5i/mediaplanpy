@@ -1,8 +1,8 @@
 """
-Updated MediaPlan storage integration with subdirectory support.
+Integration of MediaPlan models with storage functionality.
 
-This module updates the MediaPlan storage methods to save and load
-media plans from a 'mediaplans' subdirectory within the storage location.
+This module enhances the MediaPlan model with methods for saving to
+and loading from storage backends.
 """
 
 import os

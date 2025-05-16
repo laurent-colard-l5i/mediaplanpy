@@ -1,8 +1,9 @@
 """
-Updated StorageBackend base class with directory creation support.
+Base storage interface for mediaplanpy.
 
-This module adds a create_directory method to the base StorageBackend class
-to support the new subdirectory structure.
+This module defines the abstract base class for all storage backends.
+Storage backends are responsible for reading and writing media plans
+to various storage locations.
 """
 
 import abc
@@ -43,6 +44,36 @@ class StorageBackend(abc.ABC):
             True if the file exists, False otherwise.
         """
         pass
+
+    def directory_exists(self, path: str) -> bool:
+        """
+        Check if a directory exists at the specified path.
+
+        Default implementation always returns True to prevent errors
+        with storage backends that don't support directories.
+
+        Args:
+            path: The directory path to check.
+
+        Returns:
+            True if the directory exists, False otherwise.
+        """
+        return True
+
+    def list_directories(self, path: str = "") -> List[str]:
+        """
+        List subdirectories at the specified path.
+
+        Default implementation returns an empty list for storage
+        backends that don't support directory listing.
+
+        Args:
+            path: The path to list directories from.
+
+        Returns:
+            A list of directory paths.
+        """
+        return []
 
     @abc.abstractmethod
     def read_file(self, path: str, binary: bool = False) -> Union[str, bytes]:

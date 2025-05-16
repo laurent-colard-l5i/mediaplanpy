@@ -7,6 +7,7 @@ will inherit from, providing common functionality.
 
 import json
 import uuid
+import os
 from typing import Any, Dict, List, Optional, ClassVar
 from datetime import date, datetime
 from decimal import Decimal  # Added import
@@ -17,6 +18,9 @@ from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from mediaplanpy.exceptions import ValidationError, SchemaVersionError
 from mediaplanpy.schema import SchemaValidator, get_current_version
+
+# Define constants
+EXPORTS_SUBDIR = "exports"
 
 class BaseModel(PydanticBaseModel):
     """
@@ -181,20 +185,64 @@ class BaseModel(PydanticBaseModel):
         except Exception as e:
             raise ValidationError(f"Failed to load from file {file_path}: {str(e)}")
 
-    def export_to_json(self, file_path: str, indent: int = 2) -> None:
+    def export_to_json(self, file_path: Optional[str] = None, indent: int = 2) -> str:
         """
         Save the model to a JSON file.
 
         Args:
-            file_path: Path where the file should be saved.
+            file_path: Path where the file should be saved. If None, saves to
+                      exports/{mediaplan_id}.json.
             indent: Number of spaces for indentation.
+
+        Returns:
+            The path to the saved file.
 
         Raises:
             ValidationError: If the file cannot be written.
         """
         try:
+            # Generate default path if not provided
+            if file_path is None:
+                # Create exports directory if it doesn't exist
+                if not os.path.exists(EXPORTS_SUBDIR):
+                    os.makedirs(EXPORTS_SUBDIR, exist_ok=True)
+
+                # Determine filename based on model type
+                if hasattr(self, 'meta') and hasattr(self.meta, 'id'):
+                    # For MediaPlan, use meta.id
+                    model_id = self.meta.id
+                elif hasattr(self, 'id'):
+                    # For other models with id field
+                    model_id = self.id
+                else:
+                    # Generic fallback
+                    model_id = f"export_{uuid.uuid4().hex[:8]}"
+
+                # Sanitize ID for use as a filename
+                safe_id = model_id.replace('/', '_').replace('\\', '_')
+
+                # Generate path: exports/{model_id}.json
+                file_path = os.path.join(EXPORTS_SUBDIR, f"{safe_id}.json")
+            else:
+                # If path doesn't include exports directory and is just a filename,
+                # add the exports directory prefix
+                if not os.path.dirname(file_path) and not os.path.isabs(file_path):
+                    # Create exports directory if it doesn't exist
+                    if not os.path.exists(EXPORTS_SUBDIR):
+                        os.makedirs(EXPORTS_SUBDIR, exist_ok=True)
+
+                    file_path = os.path.join(EXPORTS_SUBDIR, file_path)
+                else:
+                    # Ensure the directory exists for the provided path
+                    target_dir = os.path.dirname(file_path)
+                    if target_dir and not os.path.exists(target_dir):
+                        os.makedirs(target_dir, exist_ok=True)
+
+            # Write the JSON file
             with open(file_path, 'w') as f:
                 json.dump(self.to_dict(), f, indent=indent)
+
+            return file_path
         except Exception as e:
             raise ValidationError(f"Failed to save to file {file_path}: {str(e)}")
 

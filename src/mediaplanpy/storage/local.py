@@ -1,8 +1,8 @@
 """
-Updated LocalStorageBackend with directory creation support.
+Local file storage backend for mediaplanpy.
 
-This module updates the LocalStorageBackend class to implement the
-create_directory method for the local filesystem.
+This module provides a storage backend for storing media plans
+on the local filesystem.
 """
 
 import os
@@ -100,6 +100,53 @@ class LocalStorageBackend(StorageBackend):
         """
         return os.path.join(*parts)
 
+    def directory_exists(self, path: str) -> bool:
+        """
+        Check if a directory exists at the specified path.
+
+        Args:
+            path: The directory path to check.
+
+        Returns:
+            True if the directory exists, False otherwise.
+        """
+        full_path = self.resolve_path(path)
+        return os.path.exists(full_path) and os.path.isdir(full_path)
+
+    def list_directories(self, path: str = "") -> List[str]:
+        """
+        List subdirectories at the specified path.
+
+        Args:
+            path: The path to list directories from. If empty, lists from base path.
+
+        Returns:
+            A list of directory paths relative to the base path.
+        """
+        full_path = self.resolve_path(path)
+
+        try:
+            if not os.path.exists(full_path):
+                return []
+
+            if not os.path.isdir(full_path):
+                raise StorageError(f"Path is not a directory: {full_path}")
+
+            # List all directories
+            directories = [
+                os.path.join(path, d) for d in os.listdir(full_path)
+                if os.path.isdir(os.path.join(full_path, d))
+            ]
+
+            # Normalize paths to use forward slashes for consistency
+            normalized_dirs = [d.replace('\\', '/') for d in directories]
+
+            return normalized_dirs
+        except Exception as e:
+            if not isinstance(e, StorageError):
+                logger.error(f"Failed to list directories in {full_path}: {e}")
+            return []
+
     def create_directory(self, path: str) -> None:
         """
         Create a directory at the specified path if it doesn't exist.
@@ -137,7 +184,7 @@ class LocalStorageBackend(StorageBackend):
             True if the file exists, False otherwise.
         """
         full_path = self.resolve_path(path)
-        return os.path.exists(full_path)
+        return os.path.exists(full_path) and os.path.isfile(full_path)
 
     def read_file(self, path: str, binary: bool = False) -> Union[str, bytes]:
         """
@@ -259,7 +306,7 @@ class LocalStorageBackend(StorageBackend):
         full_path = self.resolve_path(path)
 
         try:
-            if os.path.exists(full_path):
+            if os.path.exists(full_path) and os.path.isfile(full_path):
                 os.remove(full_path)
         except Exception as e:
             raise StorageError(f"Failed to delete file {full_path}: {e}")
